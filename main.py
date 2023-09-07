@@ -1,1 +1,4 @@
-print("Hello world!")
+from tello import Tello
+
+t = Tello()
+t.send_command("takeoff")
