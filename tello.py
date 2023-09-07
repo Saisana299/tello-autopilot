@@ -5,31 +5,28 @@ import cv2
 from stats import Stats
 
 class Tello:
-    def __init__(self):
-        self.local_ip = ''
-        self.local_port = 8889
+    def __init__(self, cmd_timeout_sec: float = 15.0, tello_ip: str = '192.168.10.1', tello_port: int = 8889, local_port: int = 8889) -> None:
+        self.local_port = local_port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # socket for sending cmd
-        self.socket.bind((self.local_ip, self.local_port))
+        self.socket.bind(('', self.local_port))
 
         # thread for receiving cmd ack
         self.receive_thread = threading.Thread(target=self._receive_thread)
         self.receive_thread.daemon = True
         self.receive_thread.start()
 
-        self.tello_ip = '192.168.10.1'
-        self.tello_port = 8889
+        self.tello_ip = tello_ip
+        self.tello_port = tello_port
         self.tello_adderss = (self.tello_ip, self.tello_port)
         self.log = []
 
-        self.MAX_TIME_OUT = 15.0
+        self.cmd_timeout_sec = cmd_timeout_sec
 
         # video stream
-        self.send_command("command")
-        self.send_command("streamon")
+        self.send_cmd("command")
+        self.send_cmd("streamon")
 
-        self.udp_video_ip = '0.0.0.0'
-        self.udp_video_port = 11111
-        self.udp_video_address = f'udp://@{self.udp_video_ip}:{self.udp_video_port}'
+        self.udp_video_address = 'udp://@0.0.0.0:11111'
         self.video_cap = cv2.VideoCapture(self.udp_video_address)
         self.frame = None
 
@@ -37,10 +34,10 @@ class Tello:
         self.receive_video_thread.daemon = True
         self.receive_video_thread.start()
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.socket.close()
 
-    def send_command(self, command):
+    def send_cmd(self, cmd: str) -> None:
         """
         Send a command to the ip address. Will be blocked until
         the last command receives an 'OK'.
@@ -50,23 +47,22 @@ class Tello:
         :param ip: (str) the ip of Tello
         :return: The latest command response
         """
-        self.log.append(Stats(command, len(self.log)))
+        self.log.append(Stats(cmd, len(self.log)))
 
-        self.socket.sendto(command.encode('utf-8'), self.tello_adderss)
-        print(f'sending command: {command} to {self.tello_ip}')
+        self.socket.sendto(cmd.encode('utf-8'), self.tello_adderss)
+        print(f'sending command: {cmd} to {self.tello_ip}')
 
         start = time.time()
         while not self.log[-1].got_response():
             now = time.time()
             diff = now - start
-            if diff > self.MAX_TIME_OUT:
-                print(f'Max timeout exceeded... commad {command}')
-                # TODO: is timeout considered failure or next command still get executed
-                # now, next one got executed
+            if diff > self.cmd_timeout_sec:
+                print(f'max timeout exceeded... commad {cmd}')
                 return
-        print(f'Done!!! sent command: {command} to {self.tello_ip}')
 
-    def _receive_thread(self):
+        print(f'done!!! sent command: {cmd} to {self.tello_ip}')
+
+    def _receive_thread(self) -> None:
         """Listen to responses from the Tello.
 
         Runs as a thread, sets self.response to whatever the Tello last returned.
@@ -75,13 +71,13 @@ class Tello:
         while True:
             try:
                 self.response, ip = self.socket.recvfrom(1024)
-                print('from %s: %s' % (ip, self.response))
+                print(f'from {ip}: {self.response}')
 
                 self.log[-1].add_response(self.response)
             except socket.error as exc:
-                print(f'Caught exception socket.error : {exc}')
+                print(f'caught exception socket.error : {exc}')
 
-    def _receive_video_thread(self):
+    def _receive_video_thread(self) -> None:
         """
         Listens for video streaming (raw h264) from the Tello with opencv.
         Runs as a thread, sets self.frame to the most recent frame Tello captured.
@@ -96,11 +92,11 @@ class Tello:
             self.frame = cv2.resize(frame, (int(frame_width/2), int(frame_height/2)))
             cv2.imshow('frame', self.frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xff == ord('q'):
                 break
 
         self.video_cap.release()
         cv2.destroyAllWindows()
 
-    def get_log(self):
+    def get_log(self) -> list:
         return self.log

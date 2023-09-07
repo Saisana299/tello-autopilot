@@ -4,7 +4,7 @@ import threading
 tello = Tello()
 
 def cmd(str):
-    tello.send_command(str)
+    tello.send_cmd(str)
 
 def loop():
     while True:
