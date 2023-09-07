@@ -43,8 +43,7 @@ class Tello:
         the last command receives an 'OK'.
         If the command fails (either b/c time out or error),
         will try to resend the command
-        :param command: (str) the command to send
-        :param ip: (str) the ip of Tello
+        :param cmd: (str) the command to send
         :return: The latest command response
         """
         self.log.append(Stats(cmd, len(self.log)))
