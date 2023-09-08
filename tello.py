@@ -22,6 +22,7 @@ class Tello:
 
         self.cmd_timeout_sec = cmd_timeout_sec
 
+    def enable_stream(self) -> None:
         # video stream
         self.send_cmd("command")
         self.send_cmd("streamon")
