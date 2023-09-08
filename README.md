@@ -1,4 +1,5 @@
 # tello-autopilot
+Repository moved to [Organization](https://github.com/drone-autopilot)
 
 ## install
 
