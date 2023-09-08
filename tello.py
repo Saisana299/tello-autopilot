@@ -5,10 +5,11 @@ import cv2
 from stats import Stats
 
 class Tello:
-    def __init__(self, cmd_timeout_sec: float = 15.0, tello_ip: str = '192.168.10.1', tello_port: int = 8889, local_port: int = 8889) -> None:
+    def __init__(self, cmd_timeout_sec: float = 15.0, local_ip: str = '', tello_ip: str = '192.168.10.1', tello_port: int = 8889, local_port: int = 8889) -> None:
+        self.local_ip = local_ip
         self.local_port = local_port
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # socket for sending cmd
-        self.socket.bind(('', self.local_port))
+        self.socket.bind((self.local_ip, self.local_port))
 
         # thread for receiving cmd ack
         self.receive_thread = threading.Thread(target=self._receive_thread)
@@ -21,6 +22,14 @@ class Tello:
         self.log = []
 
         self.cmd_timeout_sec = cmd_timeout_sec
+
+        # state
+        self.state_port = 8890
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind((self.local_ip, self.state_port))
+        self.state_thread = threading.Thread(target=self._state_thread)
+        self.state_thread.daemon = True
+        self.state_thread.start()
 
     def enable_stream(self) -> None:
         # video stream
@@ -76,6 +85,18 @@ class Tello:
                 self.log[-1].add_response(self.response)
             except socket.error as exc:
                 print(f'caught exception socket.error : {exc}')
+
+    def _state_thread(self) -> None:
+        while True:
+            try:
+                time.sleep(0.1)
+                self.response, ip = self.socket.recvfrom(1024)
+                self.response = str(self.response)
+
+                self.log[-1].add_response(self.response)
+
+            except socket.error as exc:
+                print("Caught exception socket.error : %s" % exc)
 
     def _receive_video_thread(self) -> None:
         """
